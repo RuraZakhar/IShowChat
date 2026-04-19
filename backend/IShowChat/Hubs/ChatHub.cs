@@ -21,5 +21,10 @@ public class ChatHub : Hub<IChatClient>
         
         await Clients.Caller.JoinedRoom(userConnection.Room);
     }
+    
+    public async Task SendMessage(string message, string userName, string room)
+    {
+        await Clients.Group(room).ReceiveMessage(userName, message);
+    }
 }
 
