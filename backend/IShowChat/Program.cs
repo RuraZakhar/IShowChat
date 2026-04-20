@@ -2,6 +2,7 @@ using IShowChat.Data;
 using IShowChat.Hubs;
 using Microsoft.EntityFrameworkCore;
 
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddCors(options =>
@@ -15,13 +16,23 @@ builder.Services.AddCors(options =>
     });
 });
 
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection") 
-                         ?? "Server=localhost,1433;Database=IShowChatDb;User Id=sa;Password=Your_Password123!;TrustServerCertificate=True;"));
+    options.UseSqlServer(connectionString, sqlServerOptionsAction: sqlOptions =>
+    {
+        sqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 5,
+            maxRetryDelay: TimeSpan.FromSeconds(30),
+            errorNumbersToAdd: null);
+    }));
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();           
-builder.Services.AddSignalR();
+builder.Services.AddSwaggerGen();         
+
+var signalRConnectionString = builder.Configuration["Azure:SignalR:ConnectionString"];
+builder.Services.AddSignalR().AddAzureSignalR(signalRConnectionString);
+
 builder.Services.AddControllers();
 
 var app = builder.Build();
