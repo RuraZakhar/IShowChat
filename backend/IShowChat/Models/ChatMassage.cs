@@ -8,5 +8,5 @@ public class ChatMessage
     public string Room { get; set; } = string.Empty;
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
     
-    public string? Sentiment { get; set; } 
+    public string? Sentiment { get; set; } = "Neutral";
 }

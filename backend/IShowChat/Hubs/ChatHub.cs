@@ -3,12 +3,15 @@ using Microsoft.AspNetCore.SignalR;
 using System.Collections.Concurrent;
 using IShowChat.Data;
 using Microsoft.EntityFrameworkCore;
+using Azure;
+using Azure.AI.TextAnalytics;
+using Microsoft.Extensions.Configuration;
 
 namespace IShowChat.Hubs;
 
 public interface IChatClient
 {
-    Task ReceiveMessage(string userName, string message);
+    Task ReceiveMessage(string userName, string message, string sentiment);
     Task JoinedRoom(string room);
     Task UserTyping(string userName);
     Task UpdateUserList(IEnumerable<string> users);
@@ -21,10 +24,19 @@ public class ChatHub : Hub<IChatClient>
 {
     private readonly AppDbContext _context;
     private static readonly ConcurrentDictionary<string, UserConnection> _connections = new();
+    private readonly TextAnalyticsClient _languageClient;
     
-    public ChatHub(AppDbContext context)
+    public ChatHub(AppDbContext context, IConfiguration configuration)
     {
         _context = context;
+
+        var key = configuration["AzureLanguage:Key"];
+        var endpoint = configuration["AzureLanguage:Endpoint"];
+
+        if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(endpoint))
+        {
+            _languageClient = new TextAnalyticsClient(new Uri(endpoint), new AzureKeyCredential(key));
+        }
     }
 
     public async Task JoinRoom(UserConnection userConnection)
@@ -41,7 +53,7 @@ public class ChatHub : Hub<IChatClient>
         await Clients.Caller.ReceiveHistory(history);
 
         await Clients.Group(userConnection.Room)
-            .ReceiveMessage("System", $"{userConnection.UserName} joined the group");
+            .ReceiveMessage("System", $"{userConnection.UserName} joined the group", sentiment: "Neutral");
     
         await Clients.Caller.JoinedRoom(userConnection.Room);
         await UpdateUsersInRoom(userConnection.Room);
@@ -51,6 +63,13 @@ public class ChatHub : Hub<IChatClient>
     {
         if (_connections.TryGetValue(Context.ConnectionId, out var userConnection))
         {
+            string sentimentResult = "neutral";
+            if (_languageClient != null)
+            {
+                var response = await _languageClient.AnalyzeSentimentAsync(message);
+                sentimentResult = response.Value.Sentiment.ToString().ToLower();
+            }
+
             var timestamp = DateTime.UtcNow;
             
             var chatMsg = new ChatMessage
@@ -58,14 +77,15 @@ public class ChatHub : Hub<IChatClient>
                 UserName = userConnection.UserName,
                 Message = message,
                 Room = userConnection.Room,
-                Timestamp = timestamp
+                Timestamp = timestamp,
+                Sentiment = sentimentResult
             };
 
             _context.ChatMessages.Add(chatMsg);
             await _context.SaveChangesAsync();
 
             await Clients.Group(userConnection.Room)
-                .ReceiveMessage(userConnection.UserName, $"{message} [{timestamp:HH:mm}]");
+                .ReceiveMessage(userConnection.UserName, message, sentimentResult); 
         }
     }
     
@@ -103,7 +123,7 @@ public class ChatHub : Hub<IChatClient>
             _connections.TryRemove(Context.ConnectionId, out _);
         
             await Clients.Group(userConnection.Room)
-                .ReceiveMessage("System", $"{userConnection.UserName} покинув чат");
+                .ReceiveMessage("System", $"{userConnection.UserName} leaved the group", sentiment: "neutral");
         
             await UpdateUsersInRoom(userConnection.Room);
         }

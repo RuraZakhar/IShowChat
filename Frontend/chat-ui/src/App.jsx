@@ -19,9 +19,17 @@ const App = () => {
         .withAutomaticReconnect()
         .build();
 
-      connection.on("receiveMessage", (user, message) => {
+      connection.on("receiveMessage", (user, message, sentiment) => {
         const messageId = Date.now().toString();
-        setMessages(messages => [...messages, { id: messageId, user, message, reactions: [], isRead: false }]);
+        setMessages(messages => [...messages, { 
+          id: messageId, 
+          user, 
+          message, 
+          sentiment, 
+          reactions: [], 
+          isRead: false 
+        }]);
+        console.log("New message sentiment:", sentiment);
       });
 
       connection.on("joinedRoom", (room) => {
@@ -39,15 +47,16 @@ const App = () => {
       });
 
       connection.on("receiveHistory", (history) => {
-      const formattedHistory = history.map(m => ({
-        id: m.id,
-        user: m.userName,
-        message: m.message,
-        reactions: [], 
-        isRead: true,
-        timestamp: m.timestamp
-      }));
-      setMessages(formattedHistory);
+        const formattedHistory = history.map(m => ({
+          id: m.id,
+          user: m.userName,
+          message: m.message,
+          sentiment: m.sentiment,
+          reactions: [], 
+          isRead: true,
+          timestamp: m.timestamp
+        }));
+        setMessages(formattedHistory);
       });
 
       connection.on("receiveReaction", (messageId, reactionType, userName) => {
@@ -182,6 +191,19 @@ const ChatRoom = ({
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, typingUser]);
 
+  const getSentimentStyles = (m) => {
+    if (m.user === currentUser) return 'bg-blue-600 text-white rounded-tr-none';
+    
+    switch (m.sentiment) {
+      case 'positive':
+        return 'bg-green-100 text-green-900 border-green-200 rounded-tl-none border';
+      case 'negative':
+        return 'bg-red-100 text-red-900 border-red-200 rounded-tl-none border';
+      default:
+        return 'bg-white text-gray-800 border rounded-tl-none';
+    }
+  };
+
   return (
     <div className="bg-white w-full max-w-4xl h-[700px] rounded-2xl shadow-2xl flex overflow-hidden">
       <div className="w-1/4 bg-gray-800 text-white p-4 hidden md:flex flex-col">
@@ -213,11 +235,7 @@ const ChatRoom = ({
             >
               <span className="text-xs text-gray-500 mb-1 px-1">{m.user}</span>
               <div className="group relative">
-                <div className={`p-3 rounded-2xl shadow-sm ${
-                  m.user === currentUser 
-                    ? 'bg-blue-600 text-white rounded-tr-none' 
-                    : 'bg-white text-gray-800 border rounded-tl-none'
-                }`}>
+                <div className={`p-3 rounded-2xl shadow-sm transition-colors duration-300 ${getSentimentStyles(m)}`}>
                   {m.message}
                   {m.user === currentUser && (
                     <span className="ml-2 text-[10px] opacity-70">{m.isRead ? '✓✓' : '✓'}</span>
