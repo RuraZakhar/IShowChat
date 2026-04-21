@@ -43,10 +43,10 @@ const App = () => {
         id: m.id,
         user: m.userName,
         message: m.message,
-        reactions: [], // або завантажуй з бази, якщо реалізував їх збереження
+        reactions: [], 
         isRead: true,
         timestamp: m.timestamp
-        }));
+      }));
       setMessages(formattedHistory);
       });
 
@@ -70,7 +70,7 @@ const App = () => {
       setRoom(room);
     } catch (e) {
       console.log(e);
-      alert("Помилка підключення!");
+      alert("Connection error!");
     }
   };
 
@@ -147,15 +147,17 @@ const Lobby = ({ joinChat }) => {
 
   return (
     <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
-      <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Вхід у IShowChat</h2>
+      <h2 className="text-2xl font-bold mb-6 text-center text-gray-800">Login to IShowChat</h2>
       <input
         className="w-full p-3 mb-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        placeholder="Твоє ім'я..."
+        placeholder="Your name..."
+        value={user}
         onChange={e => setUser(e.target.value)}
       />
       <input
         className="w-full p-3 mb-6 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        placeholder="Назва кімнати..."
+        placeholder="Room name..."
+        value={room}
         onChange={e => setRoom(e.target.value)}
       />
       <button
@@ -163,7 +165,7 @@ const Lobby = ({ joinChat }) => {
         disabled={!user || !room}
         className="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400 transition"
       >
-        Приєднатися
+        Join
       </button>
     </div>
   );
@@ -183,7 +185,7 @@ const ChatRoom = ({
   return (
     <div className="bg-white w-full max-w-4xl h-[700px] rounded-2xl shadow-2xl flex overflow-hidden">
       <div className="w-1/4 bg-gray-800 text-white p-4 hidden md:flex flex-col">
-        <h3 className="font-bold mb-4 border-b border-gray-700 pb-2">Онлайн ({usersOnline.length})</h3>
+        <h3 className="font-bold mb-4 border-b border-gray-700 pb-2">Online ({usersOnline.length})</h3>
         <ul className="space-y-2 overflow-y-auto">
           {usersOnline.map((u, i) => (
             <li key={i} className="flex items-center gap-2 text-sm">
@@ -196,10 +198,10 @@ const ChatRoom = ({
       <div className="flex-1 flex flex-col">
         <div className="bg-blue-600 p-4 text-white flex justify-between items-center">
           <div>
-            <h2 className="font-bold">Кімната: {room}</h2>
-            <p className="text-xs opacity-80">Ви залогінені як: {currentUser}</p>
+            <h2 className="font-bold">Room: {room}</h2>
+            <p className="text-xs opacity-80">Logged in as: {currentUser}</p>
           </div>
-          <button onClick={closeConnection} className="bg-red-500 hover:bg-red-600 px-4 py-1 rounded-lg text-sm transition">Вийти</button>
+          <button onClick={closeConnection} className="bg-red-500 hover:bg-red-600 px-4 py-1 rounded-lg text-sm transition">Logout</button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-gray-50">
@@ -211,7 +213,11 @@ const ChatRoom = ({
             >
               <span className="text-xs text-gray-500 mb-1 px-1">{m.user}</span>
               <div className="group relative">
-                <div className={`p-3 rounded-2xl shadow-sm ${m.user === currentUser ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-white text-gray-800 border rounded-tl-none shadow-sm'}`}>
+                <div className={`p-3 rounded-2xl shadow-sm ${
+                  m.user === currentUser 
+                    ? 'bg-blue-600 text-white rounded-tr-none' 
+                    : 'bg-white text-gray-800 border rounded-tl-none'
+                }`}>
                   {m.message}
                   {m.user === currentUser && (
                     <span className="ml-2 text-[10px] opacity-70">{m.isRead ? '✓✓' : '✓'}</span>
@@ -235,7 +241,7 @@ const ChatRoom = ({
           ))}
           {typingUser && (
             <div className="text-xs text-gray-400 italic animate-pulse">
-              {typingUser} друкує...
+              {typingUser} is typing...
             </div>
           )}
           <div ref={chatEndRef} />
@@ -247,12 +253,12 @@ const ChatRoom = ({
         >
           <input
             className="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Повідомлення..."
+            placeholder="Message..."
             value={msg}
             onKeyDown={() => sendTyping()}
             onChange={e => setMsg(e.target.value)}
           />
-          <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition font-medium">Відправити</button>
+          <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition font-medium">Send</button>
         </form>
       </div>
     </div>
