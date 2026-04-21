@@ -12,7 +12,7 @@ public class MessagesController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetMessages()
     {
-        var messages = await _context.Messages.ToListAsync();
+        var messages = await _context.ChatMessages.ToListAsync();
         return Ok(messages);
     }
 }

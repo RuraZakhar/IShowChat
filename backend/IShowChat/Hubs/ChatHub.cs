@@ -1,6 +1,8 @@
 using IShowChat.Models;
 using Microsoft.AspNetCore.SignalR;
 using System.Collections.Concurrent;
+using IShowChat.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace IShowChat.Hubs;
 
@@ -12,23 +14,36 @@ public interface IChatClient
     Task UpdateUserList(IEnumerable<string> users);
     Task ReceiveReaction(string messageId, string reactionType, string userName);
     Task NotifyMessageRead(string messageId);
+    Task ReceiveHistory(IEnumerable<ChatMessage> history);
 }
 
 public class ChatHub : Hub<IChatClient>
 {
+    private readonly AppDbContext _context;
     private static readonly ConcurrentDictionary<string, UserConnection> _connections = new();
+    
+    public ChatHub(AppDbContext context)
+    {
+        _context = context;
+    }
 
     public async Task JoinRoom(UserConnection userConnection)
     {
         await Groups.AddToGroupAsync(Context.ConnectionId, userConnection.Room);
-        
         _connections[Context.ConnectionId] = userConnection;
+
+        var history = await _context.ChatMessages
+            .Where(m => m.Room == userConnection.Room)
+            .OrderBy(m => m.Timestamp)
+            .Take(50)
+            .ToListAsync();
+
+        await Clients.Caller.ReceiveHistory(history);
 
         await Clients.Group(userConnection.Room)
             .ReceiveMessage("System", $"{userConnection.UserName} joined the group");
-        
+    
         await Clients.Caller.JoinedRoom(userConnection.Room);
-        
         await UpdateUsersInRoom(userConnection.Room);
     }
 
@@ -36,9 +51,21 @@ public class ChatHub : Hub<IChatClient>
     {
         if (_connections.TryGetValue(Context.ConnectionId, out var userConnection))
         {
-            var timestamp = DateTime.UtcNow.ToString("HH:mm");
+            var timestamp = DateTime.UtcNow;
+            
+            var chatMsg = new ChatMessage
+            {
+                UserName = userConnection.UserName,
+                Message = message,
+                Room = userConnection.Room,
+                Timestamp = timestamp
+            };
+
+            _context.ChatMessages.Add(chatMsg);
+            await _context.SaveChangesAsync();
+
             await Clients.Group(userConnection.Room)
-                .ReceiveMessage(userConnection.UserName, $"{message} [{timestamp}]");
+                .ReceiveMessage(userConnection.UserName, $"{message} [{timestamp:HH:mm}]");
         }
     }
     

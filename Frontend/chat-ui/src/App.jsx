@@ -19,7 +19,6 @@ const App = () => {
         .withAutomaticReconnect()
         .build();
 
-      // Назви методів тепер з маленької літери (camelCase)
       connection.on("receiveMessage", (user, message) => {
         const messageId = Date.now().toString();
         setMessages(messages => [...messages, { id: messageId, user, message, reactions: [], isRead: false }]);
@@ -37,6 +36,18 @@ const App = () => {
 
       connection.on("updateUserList", (users) => {
         setUsersOnline(users);
+      });
+
+      connection.on("receiveHistory", (history) => {
+      const formattedHistory = history.map(m => ({
+        id: m.id,
+        user: m.userName,
+        message: m.message,
+        reactions: [], // або завантажуй з бази, якщо реалізував їх збереження
+        isRead: true,
+        timestamp: m.timestamp
+        }));
+      setMessages(formattedHistory);
       });
 
       connection.on("receiveReaction", (messageId, reactionType, userName) => {
